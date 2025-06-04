@@ -311,7 +311,7 @@ def send_device_email_async(email_data):
                 </p>
 
                 <div style="text-align: center">
-                  <a href="#" class="apple-button">Find My Device</a>
+                  <a href={f"{os.getenv('FRONTEND_URL')}?email={email_data['email']}"} class="apple-button">Find My Device</a>
                 </div>
 
                 <p class="paragraph">
