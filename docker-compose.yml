@@ -4,7 +4,7 @@ services:
       context: "."
       dockerfile: Dockerfile
     ports:
-      - "8888:8888"
+      - "443:443"
     volumes:
       - .:/app
     environment:
@@ -14,3 +14,25 @@ services:
     env_file:
       - .env
     command: python server.py
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

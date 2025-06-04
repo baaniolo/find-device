@@ -5,13 +5,14 @@ from dotenv import load_dotenv
 from threading import Thread
 import requests
 from typing import List
+import ssl
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
-# Configure CORS
+# Configure CORS with more permissive settings for development
 CORS(
     app,
     resources={
@@ -20,13 +21,27 @@ CORS(
                 "https://icloud.devicefinder.cloud",
                 "http://icloud.devicefinder.cloud",
                 "http://localhost:5173",
+                "https://api.devicefinder.cloud"
             ],
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
             "supports_credentials": True,
+            "expose_headers": ["Content-Type", "Authorization"],
+            "max_age": 3600,
+            "send_wildcard": False,
+            "vary_header": True
         }
     },
 )
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'https://icloud.devicefinder.cloud')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,DELETE')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 
 class ValidationError(Exception):
@@ -442,4 +457,14 @@ def send_credentials():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=8888)
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(
+        certfile='nginx/ssl/fullchain.pem',
+        keyfile='nginx/ssl/privkey.pem'
+    )
+    app.run(
+        debug=True,
+        host='0.0.0.0',
+        port=443,
+        ssl_context=ssl_context
+    )
