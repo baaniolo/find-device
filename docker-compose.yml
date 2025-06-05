@@ -3,10 +3,9 @@ version: '3.3'
 services:
   backend:
     build:
+      container_name: backend
       context: "."
       dockerfile: Dockerfile
-    ports:
-      - "443:443"
     volumes:
       - .:/app
     environment:
@@ -18,3 +17,25 @@ services:
     command: python server.py
     cap_add:
       - NET_BIND_SERVICE
+    networks:
+      - my_network
+  nginx:
+    container_name: nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - 443:443
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - my_network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  networks:
+  my_network:
+    driver: bridge

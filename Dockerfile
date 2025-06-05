@@ -24,7 +24,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
-EXPOSE 443
+EXPOSE 8000
 
 # Run the application with Flask's development server
 CMD ["python", "server.py"] 
