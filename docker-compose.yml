@@ -2,8 +2,8 @@ version: '3.3'
 
 services:
   backend:
+    container_name: backend
     build:
-      container_name: backend
       context: "."
       dockerfile: Dockerfile
     volumes:
@@ -36,6 +36,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  networks:
+networks:
   my_network:
     driver: bridge
